@@ -34,7 +34,7 @@
 #include "uri.h"
 
 static int is_uri (const char *arg);
-static int parse (const char *arg, char **path_ret, char **protocol_ret, char ***server_ret, char **username_ret, char **password_ret);
+static int parse (const char *arg, char **path_ret, char **query_ret, char **protocol_ret, char ***server_ret, char **username_ret, char **password_ret);
 static char *query_get (xmlURIPtr uri, const char *search_name);
 static int make_server (xmlURIPtr uri, const char *socket, char ***ret);
 
@@ -42,6 +42,7 @@ int
 parse_uri (const char *arg, struct uri *uri_ret)
 {
   char *path = NULL;
+  char *query = NULL;
   char *protocol = NULL;
   char **server = NULL;
   char *username = NULL;
@@ -49,7 +50,7 @@ parse_uri (const char *arg, struct uri *uri_ret)
 
   /* Does it look like a URI? */
   if (is_uri (arg)) {
-    if (parse (arg, &path, &protocol, &server, &username, &password) == -1)
+    if (parse (arg, &path, &query, &protocol, &server, &username, &password) == -1)
       return -1;
   }
   else {
@@ -68,6 +69,7 @@ parse_uri (const char *arg, struct uri *uri_ret)
   }
 
   uri_ret->path = path;
+  uri_ret->query = query; 
   uri_ret->protocol = protocol;
   uri_ret->server = server;
   uri_ret->username = username;
@@ -100,12 +102,11 @@ is_uri (const char *arg)
 }
 
 static int
-parse (const char *arg, char **path_ret, char **protocol_ret,
+parse (const char *arg, char **path_ret, char **query_ret, char **protocol_ret,
            char ***server_ret, char **username_ret, char **password_ret)
 {
   CLEANUP_XMLFREEURI xmlURIPtr uri = NULL;
   CLEANUP_FREE char *socket = NULL;
-  char *path;
 
   uri = xmlParseURI (arg);
   if (!uri) {
@@ -183,21 +184,32 @@ parse (const char *arg, char **path_ret, char **protocol_ret,
    * exportname expected will be "pool/disk".  Here, uri->path will be
    * "/pool/disk" so we have to knock off the leading '/' character.
    */
-  path = uri->path;
-  if (path && path[0] == '/' &&
+  char *tmpPath = uri->path;
+  if (tmpPath && tmpPath[0] == '/' &&
       (STREQ (uri->scheme, "gluster") ||
        STREQ (uri->scheme, "iscsi") ||
        STREQ (uri->scheme, "rbd") ||
        STREQ (uri->scheme, "sheepdog")))
-    path++;
+    tmpPath++;
 
-  *path_ret = strdup (path ? path : "");
+  *path_ret = strdup (tmpPath ? tmpPath : "");
   if (*path_ret == NULL) {
     perror ("strdup: path");
     free (*protocol_ret);
     guestfs_int_free_string_list (*server_ret);
     free (*username_ret);
     free (*password_ret);
+    return -1;
+  }
+
+  *query_ret = strdup(uri->query_raw ? uri->query_raw : "");
+  if (*query_ret == NULL) {
+    perror ("strdup: query");
+    free (*protocol_ret);
+    guestfs_int_free_string_list (*server_ret);
+    free (*username_ret);
+    free (*password_ret);
+    free (*path_ret);
     return -1;
   }
 

@@ -27,6 +27,7 @@ cscope.out
 .libs
 Makefile
 Makefile.in
+tags
 
 /.sc-*
 /ABOUT-NLS

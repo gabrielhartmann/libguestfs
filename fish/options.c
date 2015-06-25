@@ -64,6 +64,7 @@ option_a (const char *arg, const char *format, struct drv **drvsp)
     drv->type = drv_uri;
     drv->nr_drives = -1;
     drv->uri.path = uri.path;
+    drv->uri.query = uri.query;
     drv->uri.protocol = uri.protocol;
     drv->uri.server = uri.server;
     drv->uri.username = uri.username;
@@ -171,6 +172,10 @@ add_drives_handle (guestfs_h *g, struct drv *drv, char next_drive)
       if (drv->uri.password) {
         ad_optargs.bitmask |= GUESTFS_ADD_DRIVE_OPTS_SECRET_BITMASK;
         ad_optargs.secret = drv->uri.password;
+      }
+      if (drv->uri.query) {
+        ad_optargs.bitmask |= GUESTFS_ADD_DRIVE_OPTS_QUERY_BITMASK;
+        ad_optargs.query = drv->uri.query;
       }
 
       r = guestfs_add_drive_opts_argv (g, drv->uri.path, &ad_optargs);
